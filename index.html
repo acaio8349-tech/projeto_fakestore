@@ -1,0 +1,300 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minha Loja | FakeStore</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f6f9;color:#222}
+header{background:#172554;color:white;padding:20px 6%;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+header h1{margin:0;font-size:25px}
+button,a{cursor:pointer}
+button{border:0;border-radius:7px;padding:11px 15px;font-weight:bold}
+.carrinho{background:#ffffff20;padding:12px;border-radius:8px}
+main{max-width:1200px;margin:auto;padding:28px 18px}
+h2{margin-top:0}
+.filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+input,select{padding:12px;border:1px solid #ccd2dd;border-radius:7px;font-size:15px}
+input{flex:1;min-width:180px}
+select{max-width:100%;background:white}
+.grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
+.card{background:white;border-radius:12px;padding:18px;box-shadow:0 3px 12px #0000000b;display:flex;flex-direction:column;gap:12px}
+.card img{width:100%;height:170px;object-fit:contain}
+.card h3{font-size:15px;line-height:1.5;margin:0;flex:1}
+.preco{font-size:21px;font-weight:bold;color:#15803d}
+.azul{background:#1d4ed8;color:white}
+.claro{background:#e8efff;color:#1d4ed8}
+.botoes{display:grid;gap:8px}
+.mensagem{text-align:center;padding:40px;color:#555}
+.detalhe{display:grid;grid-template-columns:minmax(220px,1fr) minmax(250px,1.2fr);gap:35px;background:white;border-radius:12px;padding:30px}
+.detalhe img{width:100%;height:360px;object-fit:contain}
+.detalhe h2{line-height:1.4}
+.descricao{line-height:1.8;color:#555}
+.voltar{display:inline-block;margin-bottom:20px;color:#1d4ed8;font-weight:bold;text-decoration:none}
+.avaliacao{color:#8a5a00;font-weight:bold}
+footer{text-align:center;padding:25px;color:#666}
+.escondido{display:none!important}
+@media(max-width:650px){.detalhe{grid-template-columns:1fr;padding:20px}.detalhe img{height:240px}header{padding:18px}main{padding:20px 12px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🛍️ Minha Loja</h1>
+  <div class="carrinho">🛒 Carrinho: <strong id="contador">0</strong> itens</div>
+</header>
+
+<main>
+  <section id="listagem">
+    <h2>Nossos produtos</h2>
+    <p>Encontre o produto ideal para você!</p>
+    <div class="filtros">
+      <input id="busca" placeholder="Buscar produtos..." aria-label="Buscar produtos">
+      <select id="categoria" aria-label="Filtrar por categoria">
+        <option value="">Todas as categorias</option>
+      </select>
+    </div>
+    <div id="produtos" class="grade">
+      <p class="mensagem">Carregando produtos...</p>
+    </div>
+  </section>
+
+  <section id="paginaDetalhe" class="escondido">
+    <a href="#" class="voltar" id="voltar">← Voltar para os produtos</a>
+    <div id="conteudoDetalhe"></div>
+  </section>
+
+  <section id="paginaCarrinho" class="escondido">
+    <a href="#" class="voltar" id="voltarLoja">← Continuar comprando</a>
+    <h2>Meu carrinho</h2>
+    <div id="itensCarrinho"></div>
+    <h3 id="total"></h3>
+    <button class="azul" id="limpar">Esvaziar carrinho</button>
+  </section>
+</main>
+
+<footer>Minha Loja · Produtos fornecidos pela FakeStore API</footer>
+
+<script>
+const URL_API = "https://fakestoreapi.com/products";
+let produtos = [];
+let carrinho = [];
+
+const $ = id => document.getElementById(id);
+const dinheiro = valor => valor.toLocaleString("pt-BR", {
+  style: "currency", currency: "USD"
+});
+
+async function carregarProdutos() {
+  try {
+    const resposta = await fetch(URL_API);
+    if (!resposta.ok) throw new Error("Falha ao carregar produtos");
+    produtos = await resposta.json();
+
+    const categorias = [...new Set(produtos.map(p => p.category))];
+    categorias.forEach(cat => {
+      const opcao = document.createElement("option");
+      opcao.value = cat;
+      opcao.textContent = cat;
+      $("categoria").appendChild(opcao);
+    });
+
+    renderizarProdutos();
+    abrirRota();
+  } catch (erro) {
+    $("produtos").innerHTML =
+      '<p class="mensagem">Não foi possível carregar os produtos. Verifique sua conexão e recarregue a página.</p>';
+  }
+}
+
+function renderizarProdutos() {
+  const termo = $("busca").value.toLowerCase();
+  const cat = $("categoria").value;
+  const filtrados = produtos.filter(p =>
+    p.title.toLowerCase().includes(termo) &&
+    (!cat || p.category === cat)
+  );
+
+  $("produtos").replaceChildren();
+
+  if (!filtrados.length) {
+    $("produtos").innerHTML =
+      '<p class="mensagem">Nenhum produto encontrado.</p>';
+    return;
+  }
+
+  filtrados.forEach(produto => {
+    const card = document.createElement("article");
+    card.className = "card";
+
+    const img = document.createElement("img");
+    img.src = produto.image;
+    img.alt = produto.title;
+    img.loading = "lazy";
+
+    const titulo = document.createElement("h3");
+    titulo.textContent = produto.title;
+
+    const preco = document.createElement("div");
+    preco.className = "preco";
+    preco.textContent = dinheiro(produto.price);
+
+    const nota = document.createElement("div");
+    nota.className = "avaliacao";
+    nota.textContent = `★ ${produto.rating.rate} / 5`;
+
+    const botoes = document.createElement("div");
+    botoes.className = "botoes";
+
+    const detalhes = document.createElement("button");
+    detalhes.className = "claro";
+    detalhes.textContent = "Ver detalhes";
+    detalhes.onclick = () => {
+      history.pushState({}, "", "?id=" + produto.id);
+      mostrarDetalhes(produto.id);
+    };
+
+    const adicionar = document.createElement("button");
+    adicionar.className = "azul";
+    adicionar.textContent = "Adicionar ao carrinho";
+    adicionar.onclick = () => adicionarCarrinho(produto.id);
+
+    botoes.append(detalhes, adicionar);
+    card.append(img, titulo, preco, nota, botoes);
+    $("produtos").appendChild(card);
+  });
+}
+
+function mostrarDetalhes(id) {
+  const produto = produtos.find(p => p.id === Number(id));
+  if (!produto) {
+    history.replaceState({}, "", location.pathname);
+    mostrarPagina("listagem");
+    $("produtos").innerHTML =
+      '<p class="mensagem">Produto não encontrado.</p>';
+    return;
+  }
+
+  mostrarPagina("paginaDetalhe");
+  $("conteudoDetalhe").replaceChildren();
+
+  const layout = document.createElement("article");
+  layout.className = "detalhe";
+
+  const img = document.createElement("img");
+  img.src = produto.image;
+  img.alt = produto.title;
+
+  const info = document.createElement("div");
+  const categoria = document.createElement("p");
+  categoria.textContent = produto.category;
+
+  const titulo = document.createElement("h2");
+  titulo.textContent = produto.title;
+
+  const preco = document.createElement("div");
+  preco.className = "preco";
+  preco.textContent = dinheiro(produto.price);
+
+  const descricaoTitulo = document.createElement("h3");
+  descricaoTitulo.textContent = "Descrição";
+
+  const descricao = document.createElement("p");
+  descricao.className = "descricao";
+  descricao.textContent = produto.description;
+
+  const avaliacao = document.createElement("p");
+  avaliacao.className = "avaliacao";
+  avaliacao.textContent =
+    `★ ${produto.rating.rate} de 5 (${produto.rating.count} avaliações)`;
+
+  const botao = document.createElement("button");
+  botao.className = "azul";
+  botao.textContent = "Adicionar ao carrinho";
+  botao.onclick = () => adicionarCarrinho(produto.id);
+
+  info.append(categoria, titulo, preco, descricaoTitulo,
+              descricao, avaliacao, botao);
+  layout.append(img, info);
+  $("conteudoDetalhe").appendChild(layout);
+  document.title = produto.title + " | Minha Loja";
+}
+
+function mostrarPagina(id) {
+  ["listagem", "paginaDetalhe", "paginaCarrinho"].forEach(p =>
+    $(p).classList.toggle("escondido", p !== id)
+  );
+}
+
+function adicionarCarrinho(id) {
+  carrinho.push(id);
+  atualizarCarrinho();
+  alert("Produto adicionado ao carrinho!");
+}
+
+function atualizarCarrinho() {
+  $("contador").textContent = carrinho.length;
+  $("itensCarrinho").replaceChildren();
+  let soma = 0;
+
+  carrinho.forEach((id, indice) => {
+    const produto = produtos.find(p => p.id === id);
+    if (!produto) return;
+    soma += produto.price;
+
+    const linha = document.createElement("p");
+    linha.textContent = `${produto.title} — ${dinheiro(produto.price)} `;
+
+    const remover = document.createElement("button");
+    remover.className = "claro";
+    remover.textContent = "Remover";
+    remover.onclick = () => {
+      carrinho.splice(indice, 1);
+      atualizarCarrinho();
+    };
+
+    linha.appendChild(remover);
+    $("itensCarrinho").appendChild(linha);
+  });
+
+  $("total").textContent = "Total: " + dinheiro(soma);
+}
+
+function abrirRota() {
+  const id = new URLSearchParams(location.search).get("id");
+  if (id) mostrarDetalhes(id);
+}
+
+$("busca").addEventListener("input", renderizarProdutos);
+$("categoria").addEventListener("change", renderizarProdutos);
+
+$("voltar").onclick = e => {
+  e.preventDefault();
+  history.pushState({}, "", location.pathname);
+  mostrarPagina("listagem");
+  document.title = "Minha Loja | FakeStore";
+};
+
+$("voltarLoja").onclick = e => {
+  e.preventDefault();
+  mostrarPagina("listagem");
+};
+
+$("contador").parentElement.style.cursor = "pointer";
+$("contador").parentElement.title = "Abrir carrinho";
+$("contador").parentElement.onclick = () => {
+  mostrarPagina("paginaCarrinho");
+  atualizarCarrinho();
+};
+
+$("limpar").onclick = () => {
+  carrinho = [];
+  atualizarCarrinho();
+};
+
+window.addEventListener("popstate", abrirRota);
+carregarProdutos();
+</script>
+</body>
+</html>
